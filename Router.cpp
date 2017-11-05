@@ -41,6 +41,7 @@ class Router {
         int packet_socket;
         //get list of interfaces (actually addresses)
         struct ifaddrs *tmp;
+        struct sockaddr_ll *mymac;
         
         if(getifaddrs(&ifaddr)==-1){
             perror("getifaddrs");
@@ -53,7 +54,7 @@ class Router {
             //about those for the purpose of enumerating interfaces. We can
             //use the AF_INET addresses in this list for example to get a list
             //of our own IP addresses
-            if(tmp->ifa_addr->sa_family==18){
+            if(tmp->ifa_addr->sa_family==AF_PACKET){
                 printf("found socket address\n");
                 printf("name: %s \n", tmp->ifa_name);
                 printf("family: %u \n", tmp->ifa_addr->sa_family);
@@ -71,10 +72,14 @@ class Router {
                 //we could specify just a specific one
                 packet_socket = socket(17, SOCK_RAW, htons(3));
                 socketMap.insert(std::pair<struct ifaddrs*, int>(tmp, packet_socket));
-                unsigned char *ptr = (unsigned char *)LLADDR((struct sockaddr_dl *)(tmp->ifa_addr));
-                printf(": %02x:%02x:%02x:%02x:%02x:%02x\n\n",
-                       *ptr, *(ptr+1), *(ptr+2), *(ptr+3), *(ptr+4), *(ptr+5));
                 
+//                unsigned char *ptr = (unsigned char *)LLADDR((struct sockaddr_dl *)(tmp->ifa_addr));
+//                printf(": %02x:%02x:%02x:%02x:%02x:%02x\n\n",
+//                       *ptr, *(ptr+1), *(ptr+2), *(ptr+3), *(ptr+4), *(ptr+5));
+                
+                mymac  = (struct sockaddr_ll*)tmp->ifa_addr;
+                printf("Our Mac: %02x:%02x:%02x:%02x:%02x:%02x\n",mymac->sll_addr[0],mymac->sll_addr[1],mymac->sll_addr[2],mymac->sll_addr[3],mymac->sll_addr[4],mymac->sll_addr[5]);
+
                 sockets.push_back(packet_socket);
                 //packet_socket->sockaddr_ll;
                 if(packet_socket<0){
