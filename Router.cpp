@@ -7,8 +7,8 @@
 #include <ifaddrs.h>
 #include <netinet/if_ether.h>
 
-#include <net/if_dl.h>
-
+//#include <net/if_dl.h>
+#include <netpacket/packet.h>
 #include <string.h>
 //#include <arpa/inet.h>
 #include <sys/socket.h>
@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <iostream>
-#include <thread>
+//#include <thread>
 #include <map>
 
 
@@ -70,7 +70,7 @@ class Router {
                 //could also use SOCK_DGRAM to cut off link layer header
                 //ETH_P_ALL indicates we want all (upper layer) protocols
                 //we could specify just a specific one
-                packet_socket = socket(17, SOCK_RAW, htons(3));
+                packet_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
                 socketMap.insert(std::pair<struct ifaddrs*, int>(tmp, packet_socket));
                 
 //                unsigned char *ptr = (unsigned char *)LLADDR((struct sockaddr_dl *)(tmp->ifa_addr));
@@ -78,7 +78,7 @@ class Router {
 //                       *ptr, *(ptr+1), *(ptr+2), *(ptr+3), *(ptr+4), *(ptr+5));
                 
                 mymac  = (struct sockaddr_ll*)tmp->ifa_addr;
-                printf("Our Mac: %02x:%02x:%02x:%02x:%02x:%02x\n",mymac->sll_addr[0],mymac->sll_addr[1],mymac->sll_addr[2],mymac->sll_addr[3],mymac->sll_addr[4],mymac->sll_addr[5]);
+//                printf("Our Mac: %02x:%02x:%02x:%02x:%02x:%02x\n",mymac->sll_addr[0],mymac->sll_addr[1],mymac->sll_addr[2],mymac->sll_addr[3],mymac->sll_addr[4],mymac->sll_addr[5]);
 
                 sockets.push_back(packet_socket);
                 //packet_socket->sockaddr_ll;
@@ -93,9 +93,9 @@ class Router {
                 //Here, we can use the sockaddr we got from getifaddrs (which
                 //we could convert to sockaddr_ll if we needed to)
                 
-//                if(bind(packet_socket,tmp->ifa_addr,sizeof(struct sockaddr))==-1){
-//                        perror("bind");
-//                    }
+                if(bind(packet_socket,tmp->ifa_addr,sizeof(struct sockaddr_ll))==-1){
+                        perror("bind");
+                    }
                 
                 
     
@@ -201,10 +201,20 @@ class Router {
     
     void printInterfaces(){
         std::cout << "Interfaces:\n";
-        for (int i = 0; i < interfaces.size(); ++i){
-            std::cout << interfaces.at(i).ifa_name << std::endl;
-        }
-    }
+	std::map<struct ifaddrs*, int>::iterator it;
+   	for(it = socketMap.begin(); it != socketMap.end(); it++){
+
+	std::cout << "Interface : " << it->first->ifa_name << " socket: "
+	<< it->second << std::endl; 
+	struct sockaddr_ll *mymac  = (struct sockaddr_ll*)it->first->ifa_addr;
+        printf("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",mymac->sll_addr[0],mymac->sll_addr[1],mymac->sll_addr[2],mymac->sll_addr[3],mymac->sll_addr[4],mymac->sll_addr[5]); 
+	if (!strncmp(&(it->first->ifa_name)[3], "eth1", 4)){
+	std::cout << "found: " << it->first->ifa_name << std::endl;
+	}
+	std::cout << std::endl;
+	}
+	
+	}
     
     int listen(struct ifaddrs interface, int socket){
         
@@ -213,8 +223,8 @@ class Router {
         while(1){
             
             char buf[1500];
-            struct sockaddr_dl recvaddr;
-            socklen_t recvaddrlen=sizeof(struct sockaddr_dl);
+            struct sockaddr_ll recvaddr;
+            socklen_t recvaddrlen=sizeof(struct sockaddr_ll);
             
             int n = recvfrom(packet_socket, buf, 1500,0,(struct sockaddr*)&recvaddr, &recvaddrlen);
         }
