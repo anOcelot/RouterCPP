@@ -18,7 +18,7 @@
 #include <iostream>
 //#include <thread>
 #include <map>
-
+#include <thread>
 
 class Router {
   
@@ -26,7 +26,7 @@ class Router {
     
     //map pointers to the iterfaces to the socket numbers they are bound to
       std::map<struct ifaddrs*, int> socketMap;
-
+      std::map<std::string, std::vector<std::string> > table;
       std::vector<struct ifaddrs> interfaces;
       std::vector<int> sockets;
 
@@ -208,50 +208,86 @@ class Router {
 	<< it->second << std::endl; 
 	struct sockaddr_ll *mymac  = (struct sockaddr_ll*)it->first->ifa_addr;
         printf("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",mymac->sll_addr[0],mymac->sll_addr[1],mymac->sll_addr[2],mymac->sll_addr[3],mymac->sll_addr[4],mymac->sll_addr[5]); 
-	if (!strncmp(&(it->first->ifa_name)[3], "eth1", 4)){
+	if (!strncmp(&(it->first->ifa_name)[3], "eth", 3)){
 	std::cout << "found: " << it->first->ifa_name << std::endl;
+        std::thread listener(&Router::listen, this, *it->first, it->second);
+	listener.detach();
+	//listen(*it->first, it->second);
+	
 	}
 	std::cout << std::endl;
 	}
-	
+        	
 	}
     
     int listen(struct ifaddrs interface, int socket){
         
         int packet_socket = socket;
-        
+	        
+	std::cout << "listening on interface " << interface.ifa_name << std::endl;
+            
         while(1){
             
             char buf[1500];
             struct sockaddr_ll recvaddr;
             socklen_t recvaddrlen=sizeof(struct sockaddr_ll);
-            
             int n = recvfrom(packet_socket, buf, 1500,0,(struct sockaddr*)&recvaddr, &recvaddrlen);
+	    //response(buf);
         }
         
         return 0;
     }
     
     
-    void buildTable(char * filename){
-        FILE *fp = fopen(filename, "r");
+    void buildTable(std::string filename){
+        FILE *fp = fopen(filename.c_str(), "r");
         char buff[1000];
-        fread(buff, 1, 100, fp);
+        fread(buff, 1, 200, fp);
         char *token;
         token = strtok(buff, " \n");
+        int i = 0;	
+    	std::string str = ".";
+	std::vector<std::string> current;
 
-        while (token != NULL){
-            printf("%s\n", token);
-            token = strtok(NULL, " \n");
-        }
-    }
+	while(1){
+
+		if(i % 3 == 0 && i != 0){
+			table.insert(std::pair<std::string, std::vector<std::string> >(str, current));
+			current.clear();
+			std::cout << "added list: " << str << std::endl;
+			if (token == NULL)break;
+		}
+
+		if (i % 3 == 0) {
+			str = token;
+			std::cout << "Key: " << str << std::endl;
+		}
+
+		else {
+			current.push_back(token);
+			std::cout << "added: " << token << std::endl;
+		}
+		++i;
+		if (token == NULL) {
+			break;
+	
+		}
+
+		token = strtok(NULL, " \n");
+
+	}
+
+
+
+	}
 };
 
 int main(){
     
     Router test;
     test.printInterfaces();
-    
+    //test.buildTable("r1-table.txt");
+    //test.buildTable("r1-table.txt");    
     printf("done");
     
     return 0;
